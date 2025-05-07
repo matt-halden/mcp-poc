@@ -1,23 +1,22 @@
 {
   "name": "mcp-poc",
-  "version": "1.0.0",
-  "main": "index.js",
+  "version": "0.1.0",
+  "description": "MCP PoC for Google Calendar and .md files",
+  "private": true,
+  "type": "module",
   "scripts": {
     "build": "tsc",
     "start": "node build/index.js",
-    "inspector": "npx @modelcontextprotocol/inspector build/index.js"
+    "inspector": "npx @modelcontextprotocol/inspector build/index.js",
+    "watch": "tsc --watch"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.10.2",
-    "dotenv": "^16.5.0",
-    "zod": "^3.24.3"
+    "@modelcontextprotocol/sdk": "^0.6.0",
+    "zod": "^3.22.4",
+    "googleapis": "^137.1.0"
   },
   "devDependencies": {
-    "@types/node": "^22.15.3",
-    "typescript": "^5.8.3"
+    "@types/node": "^20.11.24",
+    "typescript": "^5.3.3"
   }
 }
