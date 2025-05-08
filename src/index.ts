@@ -7,52 +7,57 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as dotenv from "dotenv";
 
+// define .env path for claude desktop
 dotenv.config();
 
-// Define anthropic
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-// Define MCP 
 const server = new McpServer({ name: "md-server", version: "1.0.0" });
-// Define allowed directory for .md files
+console.error("Current working directory:", process.cwd());
 const DOCS_DIR = path.resolve(process.cwd(), "docs");
+console.error("DOCS_DIR:", DOCS_DIR);
 
-
-server.tool("summarize_md_file", {
+server.tool(
+  "summarize_md_file",
+  {
     filePath: z
-        .string()
-        .refine((p) => p.endsWith(".md"), { message: "File must be a .md file" })
-        .refine((p) => {
-        const absolutePath = path.resolve(process.cwd(), p);
-        return absolutePath.startsWith(DOCS_DIR);
-    }, { message: "File must be in the 'docs/' directory" }),
-}, async ({ filePath }) => {
+      .string()
+      .refine((p) => p.endsWith(".md"), { message: "File must be a .md file" })
+      .refine(
+        (p) => {
+          const cleanPath = p.replace(/^\/?(docs\/)?/, "");
+          const absolutePath = path.resolve(DOCS_DIR, cleanPath);
+          console.error("Input filePath:", p, "Cleaned:", cleanPath, "Validated path:", absolutePath);
+          return absolutePath.startsWith(DOCS_DIR);
+        },
+        { message: "File must be relative to 'docs/' (e.g., 'file1.md')" }
+      ),
+  },
+  async ({ filePath }: { filePath: string }) => {
     try {
-        const absolutePath = path.resolve(process.cwd(), filePath);
-        const content = await fs.readFile(absolutePath, "utf-8");
-        // Placeholder: Truncate content for now; replace with LLM summarization later
-        // const summary = content.slice(0, 100); // Truncate to first 100 chars
-        const response = await anthropic.messages.create({
-            model: "claude-3-5-sonnet-20241022",
-            max_tokens: 100,
-            messages: [{ role: "user", content: `Summarize this markdown content in 2-3 sentences: ${content}` }],
-          });
-        // const summary = response.content[0].text;
-        // return { content: [{ type: "text", text: summary }] };
-        const firstContent = response.content[0];
-        if (firstContent.type === "text") {
-            const summary = firstContent.text;
-            return { content: [{ type: "text", text: summary }] };
-          }
-          throw new Error("Expected text content from Claude");
+      const cleanPath = filePath.replace(/^\/?(docs\/)?/, "");
+      const absolutePath = path.resolve(DOCS_DIR, cleanPath);
+      console.error("Resolved path:", absolutePath);
+      const content = await fs.readFile(absolutePath, "utf-8");
+      const response = await anthropic.messages.create({
+        model: "claude-3-5-sonnet-20241022",
+        max_tokens: 100,
+        messages: [{ role: "user", content: `Summarize this markdown content in 2-3 sentences: ${content}` }],
+      });
+      const firstContent = response.content[0];
+      if (firstContent.type === "text") {
+        const summary = firstContent.text;
+        return { content: [{ type: "text", text: summary }] };
+      }
+      throw new Error("Expected text content from Claude");
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      return {
+        content: [{ type: "text", text: `Error reading file: ${errorMessage}` }],
+        isError: true,
+      };
     }
-    catch (error) {
-        // Safely handle the error
-        const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-        return {
-            content: [{ type: "text", text: `Error reading file: ${errorMessage}` }],
-            isError: true,
-        };
-    }
-});
+  }
+);
+
 const transport = new StdioServerTransport();
 server.connect(transport);
